@@ -1,0 +1,61 @@
+name: Oppdater data og publiser
+
+on:
+  schedule:
+    # Etter stengetid i Europa (Xetra) og i USA, mandag–fredag (UTC)
+    - cron: "45 16 * * 1-5"
+    - cron: "30 21 * * 1-5"
+  workflow_dispatch:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: scripts/requirements.txt
+
+      - name: Installer Python-pakker
+        run: pip install -r scripts/requirements.txt
+
+      - name: Hent markedsdata og nyheter
+        run: python scripts/fetch_data.py --out public/data
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Bygg nettsiden
+        run: |
+          npm ci
+          npm run build
+
+      - uses: actions/upload-pages-artifact@v4
+        with:
+          path: dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
