@@ -52,6 +52,8 @@ jobs:
 
   deploy:
     needs: build
+    # GitHub Pages krever offentlig repo på gratisplanen
+    if: ${{ !github.event.repository.private }}
     runs-on: ubuntu-latest
     environment:
       name: github-pages
